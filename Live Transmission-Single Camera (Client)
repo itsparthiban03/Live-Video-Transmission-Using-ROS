@@ -1,0 +1,66 @@
+import socket
+import cv2
+import numpy as np
+
+# Create a socket object
+client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+# Get the server IP address and port
+host = input("Enter the server IP address: ")
+port = 12345
+
+# Connect to the server
+client_socket.connect((host, port))
+print('Connected to {}:{}'.format(host, port))
+# Create a VideoCapture object to receive and display the video
+cap = cv2.VideoCapture(0)
+
+try:
+    # Loop to continuously receive and display video frames from the server
+    while True:
+
+        # Receive the frame size as a 10-character string from the server
+        try:
+
+            frame_size_str = client_socket.recv(10).decode()
+        except socket.error as e:
+            print("Error receiving frame size:", e)
+            break
+
+        # Convert the frame size string to an integer
+        frame_size = int(frame_size_str)
+
+        # Receive the frame data from the server
+        frame_data = b""
+        while frame_size > 0:
+            try:
+                data = client_socket.recv(min(4096, frame_size))
+            except socket.error as e:
+                print("Error receiving frame data:", e)
+                break
+            frame_data += data
+            frame_size -= len(data)
+
+        # Convert the frame data to a numpy array
+        frame = np.frombuffer(frame_data, dtype=np.uint8)
+
+        # Reshape the numpy array to the original frame size
+        frame = frame.reshape((480, 640, 3))
+
+        # Display the received frame
+        cv2.imshow('Received Video', frame)
+        # Break the loop if the 'q' key is pressed
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+except KeyboardInterrupt:
+    print("Client interrupted by user.")
+
+finally:
+    # Release the video capture object and close the client socket
+    cap.release()
+
+    try:
+        client_socket.close()
+    except socket.error as e:
+        pass
