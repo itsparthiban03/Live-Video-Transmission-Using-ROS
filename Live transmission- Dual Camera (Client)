@@ -1,0 +1,77 @@
+import socket
+import cv2
+import numpy as np
+# Create a socket object
+client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+# Get the server IP address and port
+host = input("Enter the server IP address: ")
+port = 1234
+# Connect to the server
+client_socket.connect((host, port))
+print('Connected to {}:{}'.format(host, port))
+# Create a VideoCapture object to receive and display the video
+cap = cv2.VideoCapture(0)
+try:
+    # Loop to continuously receive and display video frames from the server
+    while True:
+        # Receive the system camera frame size as a 10-character string from the server
+        try:
+            frame_system_size_str = client_socket.recv(10).decode()
+        except socket.error as e:
+            print("Error receiving system camera frame size:", e)
+            break
+        # Convert the system camera frame size string to an integer
+        frame_system_size = int(frame_system_size_str)
+        # Receive the system camera frame data from the server
+        frame_system_data = b""
+        while frame_system_size > 0:
+            try:
+                data = client_socket.recv(min(4096, frame_system_size))
+            except socket.error as e:
+                print("Error receiving system camera frame data:", e)
+                break
+            frame_system_data += data
+            frame_system_size -= len(data)
+        # Convert the system camera frame data to a numpy array
+        frame_system = np.frombuffer(frame_system_data, dtype=np.uint8)
+        # Reshape the numpy array to the original frame size
+        frame_system = frame_system.reshape((480, 640, 3))
+        # Receive the external camera frame size as a 10-character string from the server
+        try:
+            frame_external_size_str = client_socket.recv(10).decode()
+        except socket.error as e:
+            print("Error receiving external camera frame size:", e)
+            break
+        # Convert the external camera frame size string to an integer
+        frame_external_size = int(frame_external_size_str)
+        # Receive the external camera frame data from the server
+        frame_external_data = b""
+        while frame_external_size > 0:
+            try:
+                data = client_socket.recv(min(4096, frame_external_size))
+            except socket.error as e:
+                print("Error receiving external camera frame data:", e)
+                break
+            frame_external_data += data
+            frame_external_size -= len(data)
+        # Convert the external camera frame data to a numpy array
+        frame_external = np.frombuffer(frame_external_data, dtype=np.uint8)
+        # Reshape the numpy array to the original frame size
+        frame_external = frame_external.reshape((480, 640, 3))
+        # Display the received system camera frame and the received external camera frame side by side
+        combined_frame = np.hstack((frame_system, frame_external))
+        cv2.imshow('Received System Camera Video (Left) / Received External Camera Video (Right)', combined_frame)
+        # Break the loop if the 'q' key is pressed
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+
+except KeyboardInterrupt:
+    print("Client interrupted by user.")
+finally:
+    # Release the video capture object and close the client socket
+    cap.release()
+    try:
+        client_socket.close()
+    except socket.error as e:
+        pass
