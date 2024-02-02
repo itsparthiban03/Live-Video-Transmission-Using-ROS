@@ -1,0 +1,61 @@
+import socket
+import cv2
+import numpy as np
+
+# Create a socket object
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+# Get the local machine name and define the port to listen on
+host = socket.gethostname()
+port = 12345
+# Bind the socket to a specific address and port
+server_socket.bind((host, port))
+# Listen for incoming connections
+server_socket.listen(1)
+print('Server listening on {}:{}'.format(host, port))
+# Accept a client connection
+client_socket, addr = server_socket.accept()
+print('Client connected:', addr)
+# Create a VideoCapture object to capture video from the server
+cap = cv2.VideoCapture(0)
+# Set the video codec and frame size
+fourcc = cv2.VideoWriter_fourcc(*'XVID')
+cap.set(cv2.CAP_PROP_FOURCC, fourcc)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+try:
+    # Loop to continuously capture and send video frames to the client
+    while True:
+        # Capture a frame from the video source
+        ret, frame = cap.read()
+        # Convert the frame to a string representation
+        frame_str = frame.tostring()
+        # Send the frame size to the client as a fixed-size 10-character string
+        frame_size_str = str(len(frame_str)).zfill(10)
+        try:
+            client_socket.send(frame_size_str.encode())
+        except socket.error as e:
+            print("Error sending frame size:", e)
+            break
+        # Send the frame data to the client
+        try:
+            client_socket.sendall(frame_str)
+        except socket.error as e:
+            print("Error sending frame data:", e)
+            break
+        # Break the loop if the 'q' key is pressed
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+except KeyboardInterrupt:
+    print("Server interrupted by user.")
+finally:
+    # Release the video capture object and close the client socket
+    cap.release()
+    try:
+        client_socket.close()
+    except socket.error as e:
+        pass
+
+    # Close the server socket
+    server_socket.close()
