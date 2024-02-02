@@ -1,0 +1,36 @@
+import socket
+import os
+
+# Create a socket object
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+# Get the local machine name and define the port to listen on
+host = socket.gethostname()
+port = 12345
+
+# Bind the socket to a specific address and port
+server_socket.bind((host, port))
+
+# Listen for incoming connections
+server_socket.listen(1)
+print('Server listening on {}:{}'.format(host, port))
+
+# Accept a client connection
+client_socket, addr = server_socket.accept()
+print('Client connected:', addr)
+# Receive the image size from the client
+image_size = int(client_socket.recv(1024).decode())
+
+# Receive the image data from the client
+image_data = client_socket.recv(image_size)
+
+# Save the received image to a file
+with open('received_image.jpg', 'wb') as file:
+    file.write(image_data)
+print('Image received and saved.')
+
+# Close the client socket
+client_socket.close()
+
+# Close the server socket
+server_socket.close()
